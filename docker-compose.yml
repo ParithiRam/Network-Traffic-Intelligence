@@ -1,0 +1,44 @@
+services:
+  backend:
+    build: ./backend
+    container_name: nti-backend
+    environment:
+      NTI_SIMULATE: "1"
+      NTI_SIM_PPS: "60"
+      NTI_RULES_PATH: "/data/rules.yaml"
+      NTI_DB_URL: "sqlite+aiosqlite:////data/nti.db"
+    volumes:
+      - ./sample-rules.yaml:/data/rules.yaml:ro
+      - nti-data:/data
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    container_name: nti-frontend
+    depends_on: [backend]
+    ports:
+      - "8080:80"
+
+  # Two synthetic services that "talk" to each other; doubles as a
+  # demo of cloud-style microservice traffic visibility.
+  service-a:
+    image: alpine:3
+    container_name: nti-service-a
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache curl >/dev/null
+        while true; do
+          curl -sf http://service-b:80 >/dev/null || true
+          sleep 2
+        done
+    depends_on: [service-b]
+
+  service-b:
+    image: nginx:1.27-alpine
+    container_name: nti-service-b
+
+volumes:
+  nti-data:

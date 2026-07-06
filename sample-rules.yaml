@@ -1,0 +1,33 @@
+rules:
+  - name: alert-tls-to-external
+    action: alert
+    severity: low
+    description: Surface every outbound TLS connection so we can audit destinations.
+    match:
+      proto: TLS
+      direction: outbound
+
+  - name: alert-suspicious-sni
+    action: alert
+    severity: high
+    description: Match known-bad lookalike domains via SNI.
+    match:
+      proto: TLS
+      sni_regex: "(evil|malware|phish).*"
+
+  - name: drop-internal-ssh
+    action: drop
+    severity: high
+    description: Lateral SSH between hosts is forbidden in this environment.
+    match:
+      direction: internal
+      dst_port: 22
+
+  - name: alert-internal-http-host
+    action: alert
+    severity: medium
+    description: Watch unauthorized internal API calls.
+    match:
+      proto: HTTP
+      direction: internal
+      host_regex: "^auth\\.internal$"
