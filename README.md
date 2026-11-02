@@ -1,120 +1,501 @@
-# NTI · Network Traffic Intelligence
+NTI — Network Traffic Intelligence
 
-A cloud-native traffic intelligence platform inspired by Gigamon-style
-deep observability: capture, parse, filter, analyze, and visualize network
-traffic in real time, with anomaly detection and SIEM-friendly export.
+A cloud-native network traffic intelligence platform for real-time observability, anomaly detection, and security monitoring.
 
-## What's inside
+NTI (Network Traffic Intelligence) captures, parses, filters, analyzes, and visualizes network traffic in real time. It provides deep traffic visibility, configurable detection rules, live alerting, and SIEM-friendly exports through a modern web dashboard and REST API.
 
-```
-backend/   FastAPI service: ingest -> queue -> worker -> metrics + alerts
-frontend/  React + Vite dashboard (real-time charts, alerts feed, rule editor)
-sample-rules.yaml   Example filter ruleset
-docker-compose.yml  Backend + dashboard + two demo microservices
-```
+Overview
 
-The platform supports three ingestion modes:
+NTI is designed to make network traffic analysis accessible through a lightweight, containerized architecture.
 
-| Mode      | How                                                | When to use            |
-|-----------|----------------------------------------------------|------------------------|
-| Simulator | `NTI_SIMULATE=1` (default)                         | Demos, CI, no Npcap   |
-| PCAP      | `NTI_PCAP_PATH=/path/to/file.pcap`                 | Replay captures        |
-| Live      | `tcpdump -w - | python -m app.cli pipe-pcap` *     | Real interface (admin) |
+It supports three ingestion modes:
 
-\* Live mode requires admin / Npcap on Windows; the simulator is the default
-because it works everywhere.
+Simulator: Generate synthetic network traffic for demos, development, and CI.
+PCAP Replay: Analyze previously captured network traffic.
+Live Capture: Monitor traffic from a real network interface.
 
-## Quick start (Docker)
+The platform includes built-in anomaly detection, customizable YAML filtering rules, real-time WebSocket streaming, and security event exports.
 
-```bash
+Features
+Network Traffic Intelligence
+Real-time packet ingestion and processing.
+Protocol identification and traffic classification.
+Source and destination IP tracking.
+Top talkers and bandwidth analysis.
+TLS Server Name Indication (SNI) extraction.
+HTTP Host header extraction.
+Direction-aware traffic filtering.
+Anomaly Detection
+
+Built-in detection capabilities work without requiring custom rules:
+
+Detection	Description
+Port Scanning	Detects sources accessing multiple destination ports within a sliding time window.
+Bandwidth Spikes	Identifies unusual traffic volume using rolling-baseline z-score analysis.
+TLS SNI	Extracts server names from TLS ClientHello messages.
+HTTP Host	Identifies hostnames from clear-text HTTP requests.
+Custom Detection Rules
+
+Create and manage YAML-based traffic filtering rules using:
+
+Source and destination CIDR ranges.
+Source and destination ports.
+Network protocols.
+TLS SNI regular expressions.
+HTTP Host regular expressions.
+Traffic direction: internal, external, inbound, and outbound.
+Real-Time Dashboard
+Live traffic metrics and charts.
+Top talkers and protocol distribution.
+Real-time alerts feed.
+Sampled packet visibility.
+Interactive rule editor.
+WebSocket-powered updates.
+SIEM Integration
+
+Export alerts in industry-friendly formats:
+
+CEF — ArcSight-compatible event format.
+JSONL — Suitable for Splunk, ELK, and other log pipelines.
+
+Both export endpoints support streaming responses.
+
+Architecture
+text
+                 Network Traffic
+                        |
+          +-------------+-------------+
+          |             |             |
+       Simulator     PCAP Replay   Live Capture
+          |             |             |
+          +-------------+-------------+
+                        |
+                  Ingestion Layer
+                        |
+                   Event Queue
+                        |
+                 Processing Worker
+                        |
+          +-------------+-------------+
+          |             |             |
+       Parsing       Detection      Filtering
+          |             |             |
+          +-------------+-------------+
+                        |
+                 Metrics + Alerts
+                        |
+             +----------+----------+
+             |                     |
+          FastAPI              WebSocket
+             |                     |
+        REST API             Live Dashboard
+             |                     |
+        SIEM Export          React + Vite
+
+Project Structure
+text
+NTI/
+├── backend/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── cli.py
+│   │   └── ...
+│   ├── requirements.txt
+│   └── tests/
+│
+├── frontend/
+│   ├── src/
+│   ├── package.json
+│   └── ...
+│
+├── sample-rules.yaml
+├── docker-compose.yml
+└── README.md
+
+Quick Start
+Prerequisites
+Docker
+Docker Compose
+Run with Docker Compose
+
+Clone the repository:
+
+bash
+git clone <repository-url>
+cd NTI
+
+
+Build and start the platform:
+
+bash
 docker compose up --build
-```
 
-- Dashboard: http://localhost:8080
-- API:       http://localhost:8000/docs
-- WebSocket: ws://localhost:8000/ws/stream
+Access the Services
+Service	URL
+Dashboard	http://localhost:8080
+API	http://localhost:8000
+API Documentation	http://localhost:8000/docs
+WebSocket	ws://localhost:8000/ws/stream
 
-The compose file also brings up two dummy microservices that talk to each
-other so you can see something resembling east-west traffic.
+Docker Compose also starts two demo microservices that communicate with each other, generating east-west traffic for monitoring.
 
-## Local development
+Traffic Ingestion Modes
 
-### Backend
-```bash
+NTI supports three ingestion modes.
+
+1. Simulator Mode (Default)
+bash
+NTI_SIMULATE=1
+
+
+Generates synthetic network traffic without requiring packet capture permissions or special hardware.
+
+Configure the packet generation rate:
+
+bash
+NTI_SIM_PPS=40
+
+
+Recommended for:
+
+Development and testing.
+CI/CD environments.
+Dashboard demonstrations.
+Environments without packet capture capabilities.
+2. PCAP Replay Mode
+
+Set the path to an existing packet capture:
+
+bash
+NTI_PCAP_PATH=/path/to/file.pcap
+
+
+This mode processes previously captured network traffic.
+
+Recommended for:
+
+Offline traffic analysis.
+Security investigations.
+Testing detection rules.
+Reproducible demonstrations.
+3. Live Capture Mode
+
+Live ingestion can be connected through the PCAP pipe interface.
+
+Example:
+
+bash
+tcpdump -w - | python -m app.cli pipe-pcap
+
+
+Requirements:
+
+Administrative/root privileges where required.
+tcpdump on supported Linux systems.
+Npcap on Windows.
+Appropriate network interface access.
+
+Live capture should only be enabled on networks and interfaces you are authorized to monitor.
+
+Local Development
+Backend Setup
+
+Navigate to the backend directory:
+
+bash
 cd backend
+
+
+Install dependencies:
+
+bash
 pip install -r requirements.txt
+
+
+Start the FastAPI server:
+
+bash
 uvicorn app.main:app --reload
+
+
+Run tests:
+
+bash
 pytest -q
-```
 
-Environment overrides (all optional):
 
-| Variable             | Default                              | Notes |
-|----------------------|--------------------------------------|-------|
-| `NTI_SIMULATE`       | `1`                                  | `0` to disable the simulator |
-| `NTI_SIM_PPS`        | `40`                                 | Synthetic packets/second |
-| `NTI_PCAP_PATH`      | unset                                | Read packets from a PCAP file instead |
-| `NTI_RULES_PATH`     | `./rules.yaml`                       | Where rules persist |
-| `NTI_DB_URL`         | `sqlite+aiosqlite:///./nti.db`       | Alerts store |
-| `NTI_PORTSCAN_PORTS` | `20`                                 | Port-scan detection threshold |
-| `NTI_SPIKE_Z`        | `3.0`                                | Bandwidth-spike z-score |
+Backend API documentation:
 
-### Frontend
-```bash
+text
+http://localhost:8000/docs
+
+Frontend Setup
+
+Navigate to the frontend directory:
+
+bash
 cd frontend
+
+
+Install dependencies:
+
+bash
 npm install
-npm run dev   # http://localhost:5173 (proxies /api and /ws to :8000)
-```
 
-## CLI
 
-The backend installs a `nti` console script that talks to a running server.
+Start the development server:
 
-```bash
+bash
+npm run dev
+
+
+Access the dashboard:
+
+text
+http://localhost:5173
+
+
+The Vite development server proxies /api and /ws requests to the backend running on port 8000.
+
+Configuration
+
+NTI supports environment-based configuration.
+
+Variable	Default	Description
+NTI_SIMULATE	1	Enable or disable synthetic traffic generation.
+NTI_SIM_PPS	40	Synthetic packets generated per second.
+NTI_PCAP_PATH	Unset	Path to a PCAP capture file.
+NTI_RULES_PATH	./rules.yaml	Persistent YAML rules file.
+NTI_DB_URL	sqlite+aiosqlite:///./nti.db	Database connection for alert storage.
+NTI_PORTSCAN_PORTS	20	Distinct destination-port threshold for port-scan detection.
+NTI_SPIKE_Z	3.0	Bandwidth anomaly z-score threshold.
+
+Example:
+
+bash
+NTI_SIMULATE=1 \
+NTI_SIM_PPS=100 \
+NTI_PORTSCAN_PORTS=15 \
+NTI_SPIKE_Z=2.5 \
+uvicorn app.main:app --reload
+
+Detection Rules
+
+NTI supports custom YAML-based filtering and alerting rules.
+
+Example rule:
+
+yaml
+rules:
+  - name: alert-tls-google
+    proto: TLS
+    sni_regex: 'google\.com$'
+
+
+Rules can be managed through the CLI or REST API.
+
+CLI Rule Management
+
+List configured rules:
+
+bash
 nti rules list
-nti rules add alert-tls-google --proto TLS --sni-regex 'google\.com$'
+
+
+Add a TLS detection rule:
+
+bash
+nti rules add alert-tls-google \
+  --proto TLS \
+  --sni-regex 'google\.com$'
+
+
+Import rules:
+
+bash
 nti rules import sample-rules.yaml
+
+Alert Management
+
+List the latest alerts:
+
+bash
 nti alerts list -n 20
-nti alerts tail              # follow alerts via WebSocket
-nti export cef -o alerts.cef # SIEM-friendly export
-```
 
-`NTI_BASE_URL` overrides the target (default `http://localhost:8000`).
 
-## What the platform detects
+Follow alerts in real time:
 
-Out of the box, even with no rules configured:
+bash
+nti alerts tail
 
-- **Port scans** — same source touching many distinct destination ports
-  inside a sliding window.
-- **Bandwidth spikes** — per-second byte rate exceeding a z-score threshold
-  over a rolling baseline.
-- **TLS SNI extraction** — even without decryption, we extract the server
-  name from ClientHello and surface it for filtering and alerting.
-- **HTTP host extraction** — pulled from clear-text HTTP request headers.
+SIEM Export
 
-User-defined YAML rules layer on top: CIDR, port, protocol, SNI/host regex,
-direction (internal / external / inbound / outbound).
+Export alerts to CEF:
 
-## SIEM integration
+bash
+nti export cef -o alerts.cef
 
-```bash
-curl http://localhost:8000/api/export/cef?limit=1000   # ArcSight CEF
-curl http://localhost:8000/api/export/jsonl?limit=1000 # Splunk / ELK
-```
 
-Both endpoints stream — they are safe to point at as a recurring SIEM job.
+Configure the CLI server URL:
 
-## API surface
+bash
+export NTI_BASE_URL=http://localhost:8000
 
-| Method | Path                       | Purpose                          |
-|--------|----------------------------|----------------------------------|
-| GET    | `/api/health`              | Liveness + queue depth          |
-| GET    | `/api/metrics`             | Snapshot: top talkers, protos, bw |
-| GET    | `/api/alerts?limit=N`      | Recent alerts (newest first)    |
-| GET    | `/api/rules`               | List filter rules               |
-| POST   | `/api/rules`               | Upsert by name                  |
-| DELETE | `/api/rules/{name}`        | Remove a rule                   |
-| GET    | `/api/export/cef`          | Streaming CEF                   |
-| GET    | `/api/export/jsonl`        | Streaming JSON Lines            |
-| WS     | `/ws/stream`               | metrics (1Hz) + alerts + sampled packets |
+
+Default:
+
+text
+http://localhost:8000
+
+REST API Reference
+
+NTI exposes a REST API through FastAPI.
+
+Method	Endpoint	Description
+GET	/api/health	Health status and queue depth.
+GET	/api/metrics	Traffic metrics snapshot.
+GET	/api/alerts?limit=N	Retrieve recent alerts.
+GET	/api/rules	List detection rules.
+POST	/api/rules	Create or update a rule.
+DELETE	/api/rules/{name}	Delete a rule.
+GET	/api/export/cef	Stream alerts in CEF format.
+GET	/api/export/jsonl	Stream alerts in JSON Lines format.
+WS	/ws/stream	Live metrics, alerts, and sampled packets.
+Example API Requests
+
+Check service health:
+
+bash
+curl http://localhost:8000/api/health
+
+
+Get current metrics:
+
+bash
+curl http://localhost:8000/api/metrics
+
+
+Retrieve recent alerts:
+
+bash
+curl "http://localhost:8000/api/alerts?limit=20"
+
+
+List detection rules:
+
+bash
+curl http://localhost:8000/api/rules
+
+
+Export alerts as CEF:
+
+bash
+curl http://localhost:8000/api/export/cef?limit=1000
+
+
+Export alerts as JSONL:
+
+bash
+curl http://localhost:8000/api/export/jsonl?limit=1000
+
+WebSocket Streaming
+
+NTI provides a WebSocket endpoint for real-time monitoring.
+
+text
+ws://localhost:8000/ws/stream
+
+
+The stream provides:
+
+Metrics updates at approximately 1 Hz.
+Newly generated alerts.
+Sampled packet information.
+
+The React dashboard uses this stream to update traffic visualizations and alert feeds without requiring continuous REST polling.
+
+SIEM Integration
+
+NTI supports streaming exports for external security monitoring systems.
+
+CEF
+
+Common Event Format (CEF) export:
+
+bash
+curl "http://localhost:8000/api/export/cef?limit=1000"
+
+
+Suitable for ArcSight-compatible SIEM ingestion.
+
+JSON Lines
+
+JSONL export:
+
+bash
+curl "http://localhost:8000/api/export/jsonl?limit=1000"
+
+
+Suitable for pipelines involving:
+
+Splunk.
+Elasticsearch.
+Logstash.
+Custom security analytics platforms.
+Technology Stack
+Component	Technology
+Backend	Python, FastAPI
+Frontend	React, Vite
+Real-Time Communication	WebSockets
+Database	SQLite, SQLAlchemy Async
+Rule Engine	YAML-based configuration
+Packet Processing	PCAP ingestion and parsing
+Deployment	Docker, Docker Compose
+Testing	Pytest
+Integration	CEF and JSONL exports
+Security and Responsible Use
+
+NTI is intended for authorized network observability, traffic analysis, and defensive security monitoring.
+
+Only capture traffic on networks you own or are authorized to monitor.
+Restrict access to the API and dashboard in production.
+Protect PCAP files because they may contain sensitive information.
+Secure SIEM export endpoints and database access.
+Avoid exposing the WebSocket or API publicly without appropriate access controls.
+Testing
+
+Run backend tests:
+
+bash
+cd backend
+pytest -q
+
+
+For a complete demonstration, start the Docker Compose environment and verify:
+
+The API health endpoint responds.
+Synthetic traffic appears in the dashboard.
+Metrics update in real time.
+Alerts appear when detection conditions are met.
+Rules can be created, updated, and removed.
+CEF and JSONL exports return events.
+Roadmap
+
+Potential future enhancements:
+
+Advanced protocol fingerprinting.
+GeoIP-based traffic visualization.
+Configurable alert severity and correlation.
+MITRE ATT&CK technique mapping.
+Additional SIEM integrations.
+Role-based access control.
+Historical traffic analytics.
+Distributed multi-sensor deployment.
+Enhanced anomaly detection using machine learning.
+License
+
+Add your preferred open-source license before distributing this project.
+
+NTI — Network Traffic Intelligence
+
+See your network. Understand its behavior. Detect anomalies. Respond with intelligence.
